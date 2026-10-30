@@ -47,3 +47,10 @@ INSERT INTO produits (nom, prix, quantite, disponible, date_ajout, categorie_id)
 -- Q1.6 c) : supprimer une catégorie qui contient des produits
 --          -> FOREIGN KEY constraint failed
 -- DELETE FROM categories WHERE id = 1;
+-- Q4.1 : insérer la catégorie « Électroménager »
+INSERT INTO categories (nom, description)
+VALUES ('Électroménager', 'Petits appareils');
+
+-- Q4.6 : insérer le produit « Stylo bleu » (0,500 DT, 100 unités, Papeterie)
+INSERT INTO produits (nom, prix, quantite, disponible, date_ajout, categorie_id)
+VALUES ('Stylo bleu', 0.500, 100, 1, '2026-10-30T10:00:00', 4);

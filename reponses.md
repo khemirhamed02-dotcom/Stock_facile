@@ -93,3 +93,43 @@ J'ai travaillé sur l'émulateur Android : j'ai copié la base avec `adb exec-ou
 - Structure : les deux tables `categories` et `produits` existent avec les mêmes colonnes que `brouillon.db`.
 - Parcourir les données : `categories` contient les 4 catégories de départ, `produits` est vide.
 - Éditer les pragmas : *User Version* vaut 1. Cela correspond à la ligne `version: _version` (avec `_version = 1`) de l'appel à `openDatabase` dans `database_helper.dart`.
+## Partie 04
+
+**Q4.3. Quel `id` obtient-on au premier clic ? Pourquoi ?**
+
+L'`id` est **5**. La table `categories` contient déjà 4 lignes (ids 1 à 4). Avec `AUTOINCREMENT`, SQLite attribue le numéro suivant, donc 5 : c'est la base qui choisit l'`id`, pas l'application (l'objet `Categorie` est créé sans `id`).
+
+**Q4.4. Deuxième clic sur le même bouton**
+
+Message d'erreur :
+
+```
+UNIQUE constraint failed: categories.nom (code 2067 SQLITE_CONSTRAINT_UNIQUE)
+```
+
+C'est la contrainte `UNIQUE` sur la colonne `nom` de la table `categories` (partie 01) : deux catégories ne peuvent pas avoir le même nom. Le `try / catch` intercepte la `DatabaseException`. `isUniqueConstraintError()` reconnaît ce cas et le `SnackBar` « Cette catégorie existe déjà » s'affiche.
+
+**Q4.5. Vérification dans DB Browser**
+
+La ligne `5 | Électroménager | Petits appareils` apparaît dans la table `categories` (capture : `captures/04_insert_categorie.png`).
+
+**Q4.9. Stockage de `disponible` et de `date_ajout`**
+
+`disponible` est stocké en entier : `1` (vrai). `date_ajout` est stockée en texte au format ISO 8601, par exemple `2026-10-30T15:41:46.742952`. C'est conforme à `toMap()`, qui convertit `true` en 1 et appelle `dateAjout.toIso8601String()` (capture : `captures/04_insert_produit.png`).
+
+**Q4.10. Produit avec `categorieId: 99`**
+
+- Avec `PRAGMA foreign_keys = ON`, l'insertion est refusée : `FOREIGN KEY constraint failed (code 787 SQLITE_CONSTRAINT_FOREIGNKEY)`. La catégorie 99 n'existe pas.
+- Un *hot reload* ne suffit pas pour tester sans la ligne `PRAGMA` : `DatabaseHelper` est un singleton dont la base reste ouverte, et `onConfigure` ne s'exécute qu'à l'ouverture de la base. Le hot reload conserve l'état de l'application (la connexion déjà ouverte) et ne relance pas l'ouverture. Il faut arrêter puis relancer l'application.
+- Après le redémarrage sans la ligne `PRAGMA`, l'insertion **réussit** (le produit reçoit l'id 2) alors que la catégorie 99 n'existe pas : SQLite ne vérifie pas les clés étrangères par défaut. On obtient un produit « orphelin ».
+- J'ai remis la ligne, puis j'ai désinstallé l'application pour supprimer le produit orphelin. Après réinstallation, l'erreur de clé étrangère est de nouveau levée.
+
+**Q4.11. Produit avec un prix de `-2`**
+
+La contrainte `CHECK (prix >= 0)` bloque l'insertion : `CHECK constraint failed: prix >= 0 (code 275 SQLITE_CONSTRAINT_CHECK)`. Vérifier aussi le prix dans le formulaire Flutter reste utile : l'utilisateur voit tout de suite un message clair à côté du champ, sans aller-retour avec la base ni message d'erreur technique. La contrainte de la base reste le dernier filet de sécurité, mais ce n'est pas une interface utilisateur.
+
+**Question de réflexion : `ConflictAlgorithm.ignore` et `ConflictAlgorithm.replace`**
+
+- `ignore` : en cas de violation d'une contrainte, la ligne n'est pas insérée, mais aucune erreur n'est levée.
+- `replace` : en cas de violation d'une contrainte `UNIQUE` ou de clé primaire, la ou les lignes déjà présentes qui causent le conflit sont **supprimées**, puis la nouvelle ligne est insérée.
+- Sur une table référencée par une clé étrangère, `replace` est dangereux : supprimer l'ancienne ligne (par exemple une catégorie du même nom) supprime aussi son `id`. Les produits qui pointaient vers cet `id` ne trouvent plus leur catégorie : avec `ON DELETE RESTRICT` la suppression échoue, et sans vérification des clés étrangères les produits deviennent orphelins. La nouvelle ligne reçoit en plus un nouvel `id`.
