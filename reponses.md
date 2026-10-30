@@ -43,3 +43,25 @@ Uniquement la structure de la base : les instructions `CREATE TABLE` des deux ta
 **Q1.8. Pourquoi fermer la base avant qu'un autre programme écrive dans le même fichier ?**
 
 Si DB Browser a des modifications non écrites ou garde le fichier ouvert, il peut le verrouiller (erreur « database is locked »). Deux programmes qui écrivent en même temps risquent aussi de perdre des modifications ou d'abîmer le fichier.
+## Partie 02
+
+**Q2.1. Rôle des packages**
+
+- `sqflite` : permet d'utiliser une base SQLite dans une application Flutter sur Android et iOS (ouvrir la base, exécuter des requêtes).
+- `path` : construit des chemins de fichiers de façon portable (par exemple `join(...)`), pour placer le fichier de la base au bon endroit.
+
+(`sqflite_common_ffi` n'est pas installé : l'application est testée sur Android, pas sur Windows ou Linux, donc `main.dart` n'est pas modifié pour la question Q2.2.)
+
+**Q2.3. Pourquoi `id` est-il de type `int?` ? Pourquoi `toMap()` n'ajoute-t-il `id` que s'il n'est pas null ?**
+
+- Tant que l'objet n'a pas été enregistré, il n'a pas encore d'`id` : c'est la base qui le crée avec `AUTOINCREMENT`. Le type `int?` permet donc la valeur `null`.
+- Si `id` est `null`, on ne l'ajoute pas à la `Map` : ainsi la base attribue elle-même le prochain `id` lors de l'`INSERT`.
+
+**Q2.4. `toMap()` de `Produit`**
+
+Les clés de la `Map` portent exactement les noms des colonnes. Les conversions sont : `disponible` devient 1 ou 0, `dateAjout` devient du texte avec `toIso8601String()`, et `categorieId` devient `categorie_id`.
+
+**Question de réflexion : pourquoi un constructeur `factory` ? Pourquoi `(map['prix'] as num).toDouble()` ?**
+
+- Un constructeur `factory` peut faire des calculs et des conversions avant de renvoyer l'objet (ici : lire la `Map`, convertir 1 en `true`, le texte en `DateTime`). Un constructeur classique ne fait qu'affecter les champs.
+- SQLite peut renvoyer `5` (un `int`) pour une colonne `REAL` quand la valeur est entière. Écrire `as double` provoquerait alors une erreur à l'exécution. `as num` accepte `int` et `double`, puis `.toDouble()` donne toujours un `double`.
