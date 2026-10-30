@@ -6,6 +6,7 @@ import '../database/database_helper.dart';
 import '../database/produit_dao.dart';
 import '../models/categorie.dart';
 import '../models/produit.dart';
+import 'produits_screen.dart';
 
 // Banc d'essai : sert à tester chaque méthode avant de créer la vraie interface.
 class TestsScreen extends StatelessWidget {
@@ -71,6 +72,39 @@ class TestsScreen extends StatelessWidget {
     await _insererProduitEtAfficher(negatif);
   }
 
+  // Q5.3 : lecture brute (a, b) puis lecture avec conversion en objets (c).
+  Future<void> _lireProduits() async {
+    final db = await DatabaseHelper().database;
+
+    // a) Résultat brut : une liste de Map.
+    final lignes = await db.query('produits');
+    debugPrint('Type : ${lignes.runtimeType}');
+    debugPrint(lignes.toString());
+
+    // b) Les Map renvoyées par sqflite sont en lecture seule.
+    if (lignes.isNotEmpty) {
+      try {
+        lignes.first['nom'] = 'Test';
+      } catch (e) {
+        debugPrint('Modification impossible : $e');
+      }
+    }
+
+    // c) Avec conversion : une liste d'objets Produit.
+    final produits = await ProduitDao().lireProduits();
+    for (final produit in produits) {
+      debugPrint(produit.toString());
+    }
+  }
+
+  // Q5.4 : un produit qui existe, puis un produit qui n'existe pas.
+  Future<void> _lireProduitParId() async {
+    final existant = await ProduitDao().lireProduitParId(1);
+    debugPrint('lireProduitParId(1) : $existant');
+    final inexistant = await ProduitDao().lireProduitParId(999);
+    debugPrint('lireProduitParId(999) : $inexistant');
+  }
+
   // Insère un produit et affiche l'id ou l'erreur SQLite dans la console.
   Future<void> _insererProduitEtAfficher(Produit produit) async {
     try {
@@ -128,6 +162,26 @@ class TestsScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: _ajouterProduitPrixNegatif,
             child: const Text('Test : prix négatif'),
+          ),
+          const SizedBox(height: 16),
+          Text('Lecture (Read)', style: styleTitre),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _lireProduits,
+            child: const Text('Test : lire les produits'),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _lireProduitParId,
+            child: const Text('Test : lire par id'),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProduitsScreen()),
+            ),
+            child: const Text('Ouvrir la liste des produits'),
           ),
         ],
       ),

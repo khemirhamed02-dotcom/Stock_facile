@@ -133,3 +133,28 @@ La contrainte `CHECK (prix >= 0)` bloque l'insertion : `CHECK constraint failed:
 - `ignore` : en cas de violation d'une contrainte, la ligne n'est pas insérée, mais aucune erreur n'est levée.
 - `replace` : en cas de violation d'une contrainte `UNIQUE` ou de clé primaire, la ou les lignes déjà présentes qui causent le conflit sont **supprimées**, puis la nouvelle ligne est insérée.
 - Sur une table référencée par une clé étrangère, `replace` est dangereux : supprimer l'ancienne ligne (par exemple une catégorie du même nom) supprime aussi son `id`. Les produits qui pointaient vers cet `id` ne trouvent plus leur catégorie : avec `ON DELETE RESTRICT` la suppression échoue, et sans vérification des clés étrangères les produits deviennent orphelins. La nouvelle ligne reçoit en plus un nouvel `id`.
+## Partie 05
+
+**Q5.3. Lecture brute puis avec conversion**
+
+- a) `db.query('produits')` renvoie un `QueryResultSet`, c'est-à-dire une liste de `Map<String, Object?>`. Une ligne ressemble à : `{id: 1, nom: Huile d'olive 1 L, prix: 18.5, quantite: 24, disponible: 1, date_ajout: 2026-10-01T09:00:00, categorie_id: 1}`. Les clés sont les noms des colonnes, et les valeurs sont encore brutes (1 au lieu de `true`, du texte pour la date).
+- b) `lignes.first['nom'] = 'Test';` provoque : `Unsupported operation: read-only`. Les `Map` renvoyées par `sqflite` sont en lecture seule : on ne modifie pas le résultat d'une requête. Pour changer une donnée, on passe par `db.update()`.
+- c) Avec `ProduitDao().lireProduits()`, chaque ligne est convertie par `Produit.fromMap` : le `toString()` affiche par exemple `Produit(id: 6, nom: Cahier 96 pages, prix: 1.6, quantite: 60, disponible: true, categorieId: 4)`.
+
+**Q5.4. Pourquoi `Produit?` et pas `Produit` ?**
+
+`lireProduitParId(1)` renvoie le produit, mais `lireProduitParId(999)` renvoie `null` : aucune ligne n'a cet id. Le type de retour doit donc accepter l'absence de résultat, d'où `Produit?`. L'appelant est ainsi obligé de traiter le cas « introuvable » au lieu de planter plus tard.
+
+**Q5.7. `future:` écrit directement dans le `FutureBuilder`**
+
+Si on écrit `future: _dao.lireProduits()` dans `build()`, la requête est relancée à **chaque reconstruction** de l'écran (rotation, ouverture du clavier, `setState`, hot reload...), donc plusieurs fois au lieu d'une seule. Chaque reconstruction crée un nouveau `Future`, le `FutureBuilder` repasse en chargement (le spinner clignote) et on fait des lectures inutiles dans la base. En créant le `Future` une seule fois dans `initState`, la requête n'est lancée qu'une fois ; `_rafraichir()` la relance seulement quand on le demande. (Je n'ai pas mesuré le nombre exact d'exécutions avec `debugPrint` : le `debugPrint` est en place dans `lireProduits()` pour le faire.)
+
+**Q5.9. Modifier la base dans DB Browser (desktop uniquement)**
+
+Sur desktop, DB Browser ouvre directement le fichier utilisé par l'application : après « Écrire les modifications » et un tirage de la liste vers le bas, le nouveau prix apparaît, car `_rafraichir()` relit la base. Sur émulateur, cela ne fonctionne pas : la base de l'application est dans le stockage privé de l'émulateur. DB Browser modifie seulement une **copie** du fichier sur le PC, et l'application continue de lire son propre fichier, qui n'a pas changé.
+
+**Q5.11. Pourquoi passer l'`id` et relire la base ?**
+
+La base est la source de vérité. Un objet `Produit` passé en paramètre peut être périmé (quantité ou prix modifiés entre-temps, produit supprimé) ; en relisant par `id`, le détail affiche toujours les données actuelles et peut gérer « produit introuvable ». De plus on ne transmet qu'un entier, et l'écran reste utilisable seul. Le nom de la catégorie est aussi relu depuis `categories` grâce à `categorie_id`.
+
+**Q5.12.** Capture de la liste : `captures/05_liste_produits.png`.
