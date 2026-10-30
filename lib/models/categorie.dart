@@ -1,7 +1,8 @@
+// Représente une ligne de la table "categories".
 class Categorie {
   final int? id; // null tant que la catégorie n'est pas en base
   final String nom;
-  final String? description;
+  final String? description; // facultative : peut être null
 
   const Categorie({this.id, required this.nom, this.description});
 
@@ -17,6 +18,7 @@ class Categorie {
   // Objet Dart → ligne de la base (Map)
   Map<String, dynamic> toMap() {
     return {
+      // Sans id, la base en attribue un elle-même (AUTOINCREMENT).
       if (id != null) 'id': id,
       'nom': nom,
       'description': description,

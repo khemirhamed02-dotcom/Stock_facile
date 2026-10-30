@@ -65,3 +65,31 @@ Les clés de la `Map` portent exactement les noms des colonnes. Les conversions 
 
 - Un constructeur `factory` peut faire des calculs et des conversions avant de renvoyer l'objet (ici : lire la `Map`, convertir 1 en `true`, le texte en `DateTime`). Un constructeur classique ne fait qu'affecter les champs.
 - SQLite peut renvoyer `5` (un `int`) pour une colonne `REAL` quand la valeur est entière. Écrire `as double` provoquerait alors une erreur à l'exécution. `as num` accepte `int` et `double`, puis `.toDouble()` donne toujours un `double`.
+## Partie 03
+
+**Q3.2. Questions sur `DatabaseHelper`**
+
+1. **Deux fois `DatabaseHelper()` :** un seul objet existe. Le constructeur `factory` ne crée pas de nouvel objet à chaque appel : il renvoie toujours la même instance `_instance`, créée une seule fois (c'est un singleton). Les deux appels donnent donc la même référence, et donc la même connexion à la base. Un constructeur classique créerait deux objets, chacun avec sa propre connexion.
+2. **`??=` :** « affecter seulement si c'est null ». `_database ??= await _ouvrirBase();` ouvre la base la première fois, puis réutilise la connexion déjà ouverte aux appels suivants.
+3. **`PRAGMA foreign_keys = ON` dans `onConfigure` :** ce réglage n'est pas enregistré dans le fichier, il doit être refait à chaque ouverture de la base. `onConfigure` est appelée à chaque ouverture, alors que `onCreate` n'est appelée qu'une seule fois, à la création du fichier : les clés étrangères ne seraient plus activées aux lancements suivants.
+4. **`onCreate` :** une seule fois dans toute la vie de l'application, quand le fichier `stock_facile.db` n'existe pas encore. Elle se rappelle seulement si on désinstalle l'application ou si on supprime le fichier.
+
+**Q3.4. Console au premier lancement (clic sur « Ouvrir la base »)**
+
+```
+Base SQLite : /data/user/0/com.example.stock_facile/databases/stock_facile.db
+onCreate : création des tables (version 1)
+Nombre de catégories : 4
+```
+
+**Q3.5. Deuxième lancement :** le message `onCreate` ne s'affiche plus. Le fichier de la base existe déjà (en version 1), donc SQLite n'appelle pas `onCreate`. Seuls le chemin et `Nombre de catégories : 4` s'affichent.
+
+**Q3.6. Récupération du fichier `stock_facile.db`**
+
+J'ai travaillé sur l'émulateur Android : j'ai copié la base avec `adb exec-out run-as com.example.stock_facile cat databases/stock_facile.db`, en redirigeant la sortie depuis `cmd` (PowerShell abîme les fichiers binaires), puis j'ai ouvert la copie dans DB Browser. Le fichier copié est ignoré par Git grâce au `.gitignore` (`*.db`).
+
+**Q3.7. Vérifications dans DB Browser**
+
+- Structure : les deux tables `categories` et `produits` existent avec les mêmes colonnes que `brouillon.db`.
+- Parcourir les données : `categories` contient les 4 catégories de départ, `produits` est vide.
+- Éditer les pragmas : *User Version* vaut 1. Cela correspond à la ligne `version: _version` (avec `_version = 1`) de l'appel à `openDatabase` dans `database_helper.dart`.
